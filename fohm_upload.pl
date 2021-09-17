@@ -14,7 +14,11 @@ my $metadata_csv = $ARGV[2];
 
 my $SCRIPT_ROOT = dirname($0);
 
-my %config = read_config($SCRIPT_ROOT.'/fohm.config');
+##my %config = read_config($SCRIPT_ROOT.'/fohm.config');
+my %Locations = read_config($SCRIPT_ROOT.'/LocationsClean.config');
+my %Adresses = read_config($SCRIPT_ROOT.'/AdressesClean.config');
+
+
 ##my %id_conversion_table = read_conversion_table($SCRIPT_ROOT.'/conversion.table');
 ##my %gisaid_ids = read_gisaid_ids($gisaid_log);
 my %metadata = read_pat_metadata($metadata_csv);
@@ -34,6 +38,7 @@ my %metadata = read_pat_metadata($metadata_csv);
 my $pangolin_fn = "$in_dir/analysisReport.tsv";
 die "No pangolin output!" unless -e $pangolin_fn;
 my %Pangolin_data = read_PipelineResults($pangolin_fn);
+
 ##print $Pangolin_data{"midnight_barcode04"}{lineage} . "\n";
 
 my $date = strftime '%Y-%m-%d', localtime;
@@ -74,19 +79,85 @@ foreach my $SampleID (keys % metadata){
 
 } 
 
-## gisaid
+## gisaid - columns out of sync!!! FIX!!  DO NOT USE GISAID
+
+open(GISAID, ">". $out_dir .'/'. $GlobRegion  ."_". $GlobLab  ."_".$date."_GISAIDsubmission.csv");
+print GISAID "submitter,fn,covv_virus_name,covv_type,covv_passage,covv_collection_date,covv_location,covv_add_location,covv_host,covv_gender,covv_patient_age,covv_patient_status,covv_seq_technology,covv_orig_lab,covv_orig_lab_addr,covv_subm_lab,covv_subm_lab_addr,covv_subm_sample_id,covv_authors\n";
+
+foreach my $SampleID (keys % metadata){
+print GISAID join(",", ( $metadata{$SampleID}{Submitter},
+                        ## basename($fasta_fn),
+			 "fastaseq",
+		         "",
+                         $metadata{$SampleID}{Type},
+			 
+			 $metadata{$SampleID}{'Passage details/history'},##Passage details/history
+			 $metadata{$SampleID}{'Collection date'},
+			 
+			 $Locations{ $metadata{$SampleID}{labcode} }, ## convert according to table  $Locations{}
+			 $Adresses{ $metadata{$SampleID}{labcode} }, ## convert adress   $Adresses{}
+			 $metadata{$SampleID}{Host},
+			 $metadata{$SampleID}{Gender},
+			 $metadata{$SampleID}{'Patient age'},
+			 $metadata{$SampleID}{'Patient status'},
+			 $metadata{$SampleID}{'Sequencing technology'},
+			 $Locations{ $metadata{$SampleID}{'regioncode'} }, ## convert
+			 $Adresses{ $metadata{$SampleID}{'regioncode'} }, ## convert
+			 "Original",
+		         "testauthours") , "\n"  ); # FIXME
 
 
 
-### fohm komplettering NB : does not handle multiple centers in the same metadatafile 
+}
+close GISAID;
+#                          date($collection_date),
+#                          location($origin),
+#                          "", # Additonal location (e.g. Cruise Ship, Convention, Live animal market)
+# 		 $config{host},
+#                          "", # Additional host information (e.g. Patient infected while traveling in...)
+#                          gender($gender),
+#                          age($age),
+#                          patient_status(),
+#                          specimen_source(),
+#                          outbreak(),
+#                          last_vaccinated(),
+#                          treatment(),
+# 		 $config{sequencing_technology}, # FIXME: Take as argument
+# 		 $config{assembly_method},
+#                          coverage($IN_DIR, $sample_id),
+# 		 $config{originating_lab},
+# 		 $config{originating_lab_address},
+#                          "", # Sample ID given by the sample provider
+# 		 $config{submitting_lab},
+# 		 $config{submitting_lab_address},
+#                          "", # Sample ID given by the submitting lab
+#		 $config{authors})
+##    ) . "\n" . );
+
+
+
+
+
+### fohm komplettering NB : does not handle multiple centers in the same metadatafile - solve sync issue woth GISAID accessions
 
 open(CSV, ">". $out_dir .'/'. $GlobRegion  ."_". $GlobLab  ."_".$date."_komplettering.csv");
-print CSV "provnummer,urvalskriterium,GISAID_accession\n";
+print CSV "provnummer,urvalskriterium,pangolin,GISAID_accession\n";
 foreach my $SampleID (keys % metadata){
 print CSV $metadata{$SampleID}{LibID} . "," . $metadata{$SampleID}{SelectionCriteria} . "," . "" . "\n"; 
 
 }
 close CSV;
+
+##
+
+open(CSV, ">". $out_dir .'/'. $GlobRegion  ."_". $GlobLab  ."_".$date."_pangolin_classification_format3.txt");
+print CSV "taxon\tlineage\tconflict\tambiguity_score\tscorpio_call\tscorpio_support\tscorpio_conflict\tversion\tpangolin_version\tpangoLEARN_version\tpango_version\tstatus\tnote\n";
+foreach my $SampleID (keys % metadata){
+    print CSV $metadata{$SampleID}{LibID} . "\t" . $Pangolin_data{$SampleID}{lineage}  . "\t" . $Pangolin_data{$SampleID}{conflict} . "\t" . $Pangolin_data{$SampleID}{ambiguity_score} . "\t". $Pangolin_data{$SampleID}{scorpio_call} . "\t". $Pangolin_data{$SampleID}{scorpio_support} . "\t". $Pangolin_data{$SampleID}{scorpio_conflict} . "\t". $Pangolin_data{$SampleID}{version} . "\t". $Pangolin_data{$SampleID}{pangolin_version} . "\t". $Pangolin_data{$SampleID}{pangoLEARN_version} . "\t". $Pangolin_data{$SampleID}{pango_version} . "\t". $Pangolin_data{$SampleID}{status} . "\t" . $Pangolin_data{$SampleID}{note} . "\n";
+    ##taxon lineage conflict ambiguity_score scorpio_call scorpio_support scorpio_conflict version pangolin_version pangoLEARN_version pango_ver pango_version status note
+}
+close CSV;
+
 
 
 
@@ -202,13 +273,14 @@ sub read_csv {
 
 sub read_config {
     my $fn = shift;
-    open(my $fh, $fn);
+    open(my $fh, $fn) or die;
     my %config;
     while(<$fh>) {
 	chomp;
 	my ($key, $value) = split /=/;
 	$config{$key} = $value;
     }
+    close $fh;
     return %config;
 }
 
