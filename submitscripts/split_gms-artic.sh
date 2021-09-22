@@ -6,7 +6,7 @@ TEMPFASTQ=$2
 ARTICDIR=$3
 ARTICOUTPUT=$4
 ARTICPREFIX=$5
-CHUNKSIZE=${6-4}
+CHUNKSIZE=${6-120}
 
 ### Sanity checks
 # Does tempdir exist? 
