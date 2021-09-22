@@ -74,11 +74,17 @@ if [ "${BASH_VERSINFO:-0}" -lt 4 ]; then
     exit 1
 fi
 
+#Is there a main.nf in ARTICDIR
+if [ ! -f "${ARTICDIR}/main.nf" ]; then
+    echo "Could not find a main.nf in $ARTICDIR."
+    exit 1
+fi
+
 #Set up some counters
 COUNTER=0
 RESCOUNT=1
 
-#Load in al lfiles to process into an array
+#Load in all files to process into an array
 FASTQS=($FASTQDIR/*fastq.gz)
 
 for FASTQ in ${FASTQS[@]}; do
