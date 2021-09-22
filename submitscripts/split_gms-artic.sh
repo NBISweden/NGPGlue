@@ -1,12 +1,53 @@
 #!/bin/bash
 
-#CLI
-FASTQDIR=$1
-TEMPFASTQ=$2
-ARTICDIR=$3
-ARTICOUTPUT=$4
-ARTICPREFIX=$5
-CHUNKSIZE=${6-4}
+### #CLI
+#Defaults
+CHUNKSIZE=50
+
+#Usage instructions on no args
+if  [ "$#" == 0 ]; then
+    SCRIPTNAME=`basename "$0"`
+    echo >&2 -e "Usage: $SCRIPTNAME 
+    \t-f /path/to/fastq/dir
+    \t-t /path/to/temp/dir
+    \t-a /path/to/gms-artic
+    \t-o /path/to/output/dir
+    \t-p Prefix for output files
+    \t-c Chunk size to use (Default: $CHUNKSIZE)" 
+    exit 0
+fi
+
+#Read in all flags
+while getopts ":f:t:a:o:p:c:" opt; do
+    case $opt in
+	f)
+	    FASTQDIR=$OPTARG
+	    ;;
+	t)
+	    TEMPFASTQ=$OPTARG
+	    ;;
+	a)
+	    ARTICDIR=$OPTARG
+	    ;;
+	o)
+	    OUTPUTDIR=$OPTARG
+	    ;;
+	p)
+	    PREFIX=$OPTARG
+	    ;;
+	c)
+	    CHUNKSIZE=$OPTARG
+	    ;;
+	\?)
+	    echo >&2 "Invalid option: -$OPTARG" >&2
+	    exit 1
+	    ;;
+	:)
+	    echo >&2 "Option -$OPTARG requires an argument." >&2
+	    exit 1
+	    ;;
+    esac
+done
 
 ### Sanity checks
 # Does tempdir exist? 
@@ -47,7 +88,7 @@ for FASTQ in ${FASTQS[@]}; do
     #Run CHUNKSIZE num of samples at once
     if [[ $COUNTER -gt $CHUNKSIZE-1 ]]; then
 	#Run pipeline
-	nextflow run ${ARTICDIR}/main.nf -profile singularity,sge --illumina --prefix $ARTICPREFIX --directory $TEMPFASTQ --outdir ${ARTICOUTPUT}-$RESCOUNT
+	nextflow run ${ARTICDIR}/main.nf -profile singularity,sge --illumina --prefix $PREFIX --directory $TEMPFASTQ --outdir ${OUTPUTDIR}-$RESCOUNT
 
 	#Reset counters
 	let RESCOUNT=RESCOUNT+1
@@ -59,7 +100,7 @@ for FASTQ in ${FASTQS[@]}; do
 
     #Run again for all remaining samples
     if [ $FASTQ == ${FASTQS[-1]} ] && [ $COUNTER -gt 0 ]; then
-	nextflow run ${ARTICDIR}/main.nf -profile singularity,sge --illumina --prefix $ARTICPREFIX --directory $TEMPFASTQ --outdir ${ARTICOUTPUT}-$RESCOUNT
+	nextflow run ${ARTICDIR}/main.nf -profile singularity,sge --illumina --prefix $PREFIX --directory $TEMPFASTQ --outdir ${OUTPUTDIR}-$RESCOUNT
 	rm $TEMPFASTQ/*.fastq.gz
     fi
 
