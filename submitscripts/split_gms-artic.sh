@@ -47,7 +47,7 @@ for FASTQ in ${FASTQS[@]}; do
     #Run CHUNKSIZE num of samples at once
     if [[ $COUNTER -gt $CHUNKSIZE-1 ]]; then
 	#Run pipeline
-	echo "nextflow run ${ARTICDIR}/main.nf -profile singularity,sge --illumina --prefix $ARTICPREFIX --directory $TEMPFASTQ --outdir ${ARTICOUTPUT}-$RESCOUNT"
+	nextflow run ${ARTICDIR}/main.nf -profile singularity,sge --illumina --prefix $ARTICPREFIX --directory $TEMPFASTQ --outdir ${ARTICOUTPUT}-$RESCOUNT
 
 	#Reset counters
 	let RESCOUNT=RESCOUNT+1
@@ -59,7 +59,7 @@ for FASTQ in ${FASTQS[@]}; do
 
     #Run again for all remaining samples
     if [ $FASTQ == ${FASTQS[-1]} ] && [ $COUNTER -gt 0 ]; then
-	echo "nextflow run ${ARTICDIR}/main.nf -profile singularity,sge --illumina --prefix $ARTICPREFIX --directory $TEMPFASTQ --outdir ${ARTICOUTPUT}-$RESCOUNT"
+	nextflow run ${ARTICDIR}/main.nf -profile singularity,sge --illumina --prefix $ARTICPREFIX --directory $TEMPFASTQ --outdir ${ARTICOUTPUT}-$RESCOUNT
 	rm $TEMPFASTQ/*.fastq.gz
     fi
 
