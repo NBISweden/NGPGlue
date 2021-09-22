@@ -112,4 +112,3 @@ for FASTQ in ${FASTQS[@]}; do
 
 
 done
-
